@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Smart Employee Tracking</title>
+
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+
+  <style>
+    :root {
+      --panel-w: 360px;
+      --bg: #f6f8fb;
+      --accent: #0d6efd;
+      --muted: #64748b;
+      --card: #fff;
+      --shadow: 0 6px 18px rgba(20,20,40,0.08);
+      --radius: 10px;
+      font-family: 'Inter', system-ui, sans-serif;
+    }
+    * {
+      box-sizing: border-box;
+    }
+    html, body, #app {
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      background: var(--bg);
+    }
+    html, body, #app, #mapContainer {
+      height: 100%;
+    }
+    #app {
+      display: flex;
+      gap: 16px;
+      align-items: stretch;
+      padding: 18px;
+    }
+    #controls {
+      width: var(--panel-w);
+      background: var(--card);
+      padding: 16px;
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow: auto;
+      flex-shrink: 0;
+    }
+    #controls h2 {
+      margin: 0 0 12px 0;
+      font-size: 18px;
+    }
+    #controls label {
+      display: block;
+      margin: 8px 0;
+      font-size: 13px;
+      color: var(--muted);
+    }
+    #controls select,
+    #controls input {
+      width: 100%;
+      padding: 8px;
+      border-radius: 8px;
+      border: 1px solid #e6eef8;
+      background: #fff;
+      font-size: 14px;
+      height: 38px;
+    }
+    .buttons {
+      display: flex;
+      gap: 8px;
+      margin-top: 8px;
+    }
+    .buttons button {
+      flex: 1;
+      padding: 8px;
+      border-radius: 8px;
+      border: 0;
+      background: var(--accent);
+      color: #fff;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .buttons button:last-child {
+      background: #e7eef9;
+      color: #063b66;
+    }
+    #employeeList {
+      margin-top: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .employee-row {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      padding: 8px;
+      border-radius: 8px;
+      background: #f8fbff;
+      border: 1px solid #eef6ff;
+      cursor: pointer;
+    }
+    .employee-row .pin {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+    }
+    .employee-row .meta {
+      font-size: 13px;
+    }
+    .employee-row .meta .name {
+      font-weight: 600;
+    }
+    .employee-row .meta .sub {
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .list {
+      max-height: 46vh;
+      overflow: auto;
+    }
+    .legend {
+      display: block;
+      margin-top: 12px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .swatch {
+      display: inline-block;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      margin-right: 6px;
+      vertical-align: middle;
+    }
+    .swatch.green { background: #28a745; }
+    .swatch.blue { background: #0d6efd; }
+    .swatch.red { background: #dc3545; }
+
+    #mapContainer {
+      flex: 1;
+      height: calc(100vh - 36px);
+      display: flex;
+      flex-direction: column;
+    }
+    #map {
+      flex: 1;
+      height: 100%;
+      min-height: 500px;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: var(--shadow);
+      border: 1px solid rgba(0,0,0,0.04);
+    }
+    @media (max-width: 1000px) {
+      #app { flex-direction: column; }
+      #controls { width: 100%; }
+      #mapContainer { height: 60vh; }
+    }
+  </style>
+</head>
+<body>
+<div id="app">
+  <aside id="controls">
+    <h2>Filters</h2>
+
+    <label>Province
+      <select id="provinceSelect" disabled>
+        <option value="Punjab" selected>Punjab</option>
+      </select>
+    </label>
+
+    <label>District
+      <select id="districtSelect">
+        <option value="All" selected>All Districts</option>
+        <option value="Lahore">Lahore</option>
+        <option value="Faisalabad">Faisalabad</option>
+        <option value="Rawalpindi">Rawalpindi</option>
+        <option value="Multan">Multan</option>
+        <option value="Gujranwala">Gujranwala</option>
+        <option value="Sialkot">Sialkot</option>
+        <option value="Bahawalpur">Bahawalpur</option>
+        <option value="Sargodha">Sargodha</option>
+        <option value="Sahiwal">Sahiwal</option>
+        <option value="Sheikhupura">Sheikhupura</option>
+        <option value="Jhelum">Jhelum</option>
+        <option value="Okara">Okara</option>
+        <option value="Dera Ghazi Khan">Dera Ghazi Khan</option>
+      </select>
+    </label>
+
+    <label>Role
+      <select id="roleSelect">
+        <option value="All" selected>All Roles</option>
+        <option value="Veterinary Officer">Veterinary Officer</option>
+        <option value="Veterinary Assistant">Veterinary Assistant</option>
+        <option value="Field Staff">Field Staff</option>
+        <option value="AIT">AIT</option>
+      </select>
+    </label>
+
+    <label>Status
+      <select id="statusSelect">
+        <option value="All" selected>All Statuses</option>
+        <option value="moving">Moving</option>
+        <option value="static">Static</option>
+        <option value="non-performer">Non-performer</option>
+      </select>
+    </label>
+
+    <label>Search
+      <input id="searchInput" placeholder="Search name or ID" />
+    </label>
+
+    <div class="buttons">
+      <button id="applyBtn">Apply Filters</button>
+      <button id="resetBtn">Reset</button>
+    </div>
+
+    <h3>Employees</h3>
+    <div id="employeeList" class="list"></div>
+
+    <small class="legend">
+      <strong>Employee Status:</strong>
+      <div><span class="swatch green"></span> Moving</div>
+      <div><span class="swatch blue"></span> Static</div>
+      <div><span class="swatch red"></span> Non-performer</div>
+    </small>
+  </aside>
+
+  <main id="mapContainer">
+    <div id="map"></div>
+  </main>
+</div>
+
+<!-- Leaflet JS -->
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
+<!-- App JS -->
+<script src="app.js"></script>
+</body>
+</html>
