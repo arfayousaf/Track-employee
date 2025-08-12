@@ -406,6 +406,19 @@ function generateEmployees() {
       const role = roles[Math.floor(Math.random() * roles.length)];
       const status = statuses[Math.floor(Math.random() * statuses.length)];
 
+      // Create a track path only if status is moving
+      let track = null;
+      if (status === "moving") {
+        track = [];
+        let prevLat = lat;
+        let prevLng = lng;
+        for (let t = 0; t < 5; t++) {
+          prevLat += (Math.random() - 0.5) * 0.005;
+          prevLng += (Math.random() - 0.5) * 0.005;
+          track.push({ lat: prevLat, lng: prevLng });
+        }
+      }
+
       employees.push({
         id: `E${String(idCounter).padStart(3, '0')}`,
         name: `Emp ${idCounter}`,
@@ -419,6 +432,7 @@ function generateEmployees() {
         last_seen: `2025-08-11 ${String(8 + Math.floor(Math.random() * 10)).padStart(2, '0')}:${String(Math.floor(Math.random() * 60)).padStart(2,'0')}`,
         visits_today: Math.floor(Math.random() * 5),
         perf_score: Math.floor(Math.random() * 100),
+        track,  // added here
       });
       idCounter++;
     }
@@ -426,7 +440,6 @@ function generateEmployees() {
     // Add one employee per polygon UC inside its centroid with status red or blue only
     if (geofencePolygons[district]) {
       geofencePolygons[district].forEach((uc, idx) => {
-        // Calculate centroid
         let latSum = 0, lngSum = 0;
         uc.coords.forEach(c => {
           latSum += c[0];
@@ -434,9 +447,7 @@ function generateEmployees() {
         });
         const centroid = [latSum / uc.coords.length, lngSum / uc.coords.length];
 
-        // Randomly pick status red or blue for fenced employee
-        const status = Math.random() < 0.5 ? "static" : "non-performer"; // Map to red or blue?
-        // Let's map 'static' → blue, 'non-performer' → red for coloring consistency
+        const status = Math.random() < 0.5 ? "static" : "non-performer";
         const statusColor = status === "static" ? "static" : "non-performer";
 
         employees.push({
@@ -460,6 +471,7 @@ function generateEmployees() {
     }
   });
 }
+
 
 // ---------------------------
 // Leaflet map & markers
