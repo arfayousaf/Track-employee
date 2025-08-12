@@ -432,45 +432,91 @@ function generateEmployees() {
         last_seen: `2025-08-11 ${String(8 + Math.floor(Math.random() * 10)).padStart(2, '0')}:${String(Math.floor(Math.random() * 60)).padStart(2,'0')}`,
         visits_today: Math.floor(Math.random() * 5),
         perf_score: Math.floor(Math.random() * 100),
-        track,  // added here
+        track,
       });
       idCounter++;
     }
 
-    // Add one employee per polygon UC inside its centroid with status red or blue only
-    if (geofencePolygons[district]) {
-      geofencePolygons[district].forEach((uc, idx) => {
-        let latSum = 0, lngSum = 0;
-        uc.coords.forEach(c => {
-          latSum += c[0];
-          lngSum += c[1];
-        });
-        const centroid = [latSum / uc.coords.length, lngSum / uc.coords.length];
+    // Add multiple employees per polygon UC inside its centroid
+    // Add multiple employees per polygon UC with slight spread from centroid
+if (geofencePolygons[district]) {
+  geofencePolygons[district].forEach((uc, idx) => {
+    let latSum = 0, lngSum = 0;
+    uc.coords.forEach(c => {
+      latSum += c[0];
+      lngSum += c[1];
+    });
+    const centroid = [latSum / uc.coords.length, lngSum / uc.coords.length];
 
-        const status = Math.random() < 0.5 ? "static" : "non-performer";
-        const statusColor = status === "static" ? "static" : "non-performer";
+    // Random number of employees per polygon: 6–8
+    const numUCEmployees = Math.floor(Math.random() * 3) + 6;
+    function randomPointInPolygon(polygonCoords) {
+  let bounds = polygonCoords.reduce((acc, coord) => {
+    acc.minLat = Math.min(acc.minLat, coord[0]);
+    acc.maxLat = Math.max(acc.maxLat, coord[0]);
+    acc.minLng = Math.min(acc.minLng, coord[1]);
+    acc.maxLng = Math.max(acc.maxLng, coord[1]);
+    return acc;
+  }, { minLat: Infinity, maxLat: -Infinity, minLng: Infinity, maxLng: -Infinity });
 
-        employees.push({
-          id: `UC${district[0]}-${idx + 1}`,
-          name: `UC Emp ${idx + 1} (${uc.name})`,
-          role: roles[Math.floor(Math.random() * roles.length)],
-          status: statusColor,
-          province: "Punjab",
-          district,
-          facility: `${district}-UC-${idx + 1}`,
-          lat: centroid[0],
-          lng: centroid[1],
-          last_seen: "2025-08-11 10:00",
-          visits_today: 0,
-          perf_score: 0,
-          ucName: uc.name,
-          isFenced: true,
-          polygonColor: uc.color
-        });
+  let point;
+  do {
+    const lat = bounds.minLat + Math.random() * (bounds.maxLat - bounds.minLat);
+    const lng = bounds.minLng + Math.random() * (bounds.maxLng - bounds.minLng);
+    if (isPointInPolygon([lat, lng], polygonCoords)) {
+      point = [lat, lng];
+    }
+  } while (!point);
+
+  return point;
+}
+
+
+    for (let e = 0; e < numUCEmployees; e++) {
+      // Add slight random offset so they don't overlap exactly
+      const offsetLat = (Math.random() - 0.5) * 0.008; // ~200m spread
+      const offsetLng = (Math.random() - 0.5) * 0.008;
+
+      // Randomly assign status: static (blue), non-performer (red), performer (green)
+const randomNum = Math.random();
+let status, statusColor;
+
+if (randomNum < 0.4) { 
+  status = "static";           // blue
+  statusColor = "static";
+} else if (randomNum < 0.8) {  
+  status = "non-performer";    // red
+  statusColor = "non-performer";
+} else {                       
+  status = "performer";        // green
+  statusColor = "performer";
+}
+
+
+      employees.push({
+        id: `UC${district[0]}-${idx + 1}-${e + 1}`,
+        name: `UC Emp ${e + 1} (${uc.name})`,
+        role: roles[Math.floor(Math.random() * roles.length)],
+        status: statusColor,
+        province: "Punjab",
+        district,
+        facility: `${district}-UC-${idx + 1}`,
+        lat: centroid[0] + offsetLat,
+        lng: centroid[1] + offsetLng,
+        last_seen: "2025-08-11 10:00",
+        visits_today: Math.floor(Math.random() * 3),
+        perf_score: Math.floor(Math.random() * 100),
+        ucName: uc.name,
+        isFenced: true,
+        polygonColor: uc.color
       });
     }
   });
 }
+
+  });
+}
+
 
 
 // ---------------------------
@@ -575,16 +621,13 @@ function renderMarkers(data) {
 
   data.forEach(emp => {
     let icon = ICONS[emp.status] || ICONS.moving;
-    if(emp.isFenced){
-      // Fenced employees get special icon based on status
-      icon = emp.status === "static" ? ICONS.static : ICONS["non-performer"];
-    }
 
     const marker = L.marker([emp.lat, emp.lng], { icon }).addTo(map);
     marker.on("click", () => onMarkerClick(emp, marker));
     markers.push(marker);
   });
 }
+
 
 // Marker click popup with details
 function onMarkerClick(emp, marker) {
